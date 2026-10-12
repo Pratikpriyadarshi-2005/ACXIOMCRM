@@ -1,70 +1,86 @@
-# AcxiomCRM — Next.js + ASP.NET Core + Supabase
+- ASP.NET Core Identity hashes passwords. Plain-text passwords and hashes are never returned.
+- Password policy: at least 8 characters, with uppercase, lowercase, a number, and a symbol.
+- Five failed sign-ins lock the account for 15 minutes.
+- Short-lived JWT bearer tokens. Logout updates the security stamp and revokes active sessions.
+- Login, logout, lockout, create, update, delete, role changes, and password resets are audited.
+- Requests are validated at the API. Duplicate customer email or phone, bad status transitions, and out-of-scope records are rejected.
+- Unexpected failures return a safe message. Stack traces are not sent to the client.
 
-A source-code project for the selected architecture: **Next.js frontend on Vercel → ASP.NET Core REST API on Railway → Supabase PostgreSQL**. This replaces the earlier Next.js-only starter.
+## Architecture
 
-## What is included
-- Next.js responsive sidebar, login/register, role-aware navigation and logout.
-- Dashboard KPIs and Chart.js lead, pipeline and monthly sales charts.
-- Customer, lead, opportunity, follow-up and activity create/read/update/deactivate screens with search, filtering, sorting and pagination.
-- Opportunity pipeline board (current paginated results); qualified-lead-to-customer conversion.
-- Admin user creation/editing, roles, account activation, unlock and password reset; audit viewer.
-- ASP.NET Core Identity password policy/hashing/lockout, short-lived bearer authentication and revocation via security stamps.
-- Server-side role/team/owner scope, business validation, EF Core PostgreSQL models, explicit record DTOs, concurrency checking and transactional CRM audit writes.
-- Date-filtered scoped analytics, weighted pipeline and conversion reports; module tables serve as detailed operational reports.
+Browser (Next.js on Vercel)
+        │  HTTPS + bearer token
+        ▼
+ASP.NET Core API (Railway)
+        │  Controllers → services → EF Core
+        ▼
+PostgreSQL (Supabase)
 
-## Verification status — read before use
-The frontend production build and TypeScript check have passed. The .NET API has **not been compiled or executed in this environment**, and no database integration, end-to-end browser or security acceptance tests have run. Treat backend source as an implementation requiring local verification, not a certified finished submission. No live deployment or Supabase resources have been created. See docs/acceptance.md.
+The browser never connects to the database. Identity owns users, roles, password hashes, and lockout. CRM writes and their audit rows are saved in one transaction. List and detail responses use explicit DTOs.
 
-## Prerequisites
-Node.js 22/24, .NET SDK 10, and a PostgreSQL database (local or Supabase). Never place database passwords or JWT secrets in NEXT_PUBLIC variables.
+| Layer | Technology |
+|---|---|
+| UI | Next.js, React, TypeScript, Tailwind CSS, Chart.js |
+| API | ASP.NET Core, ASP.NET Core Identity, JWT bearer auth, EF Core |
+| Data | PostgreSQL on Supabase |
+| Hosting | Vercel (web), Railway (API) |
 
-## 1. Database and backend
-Supabase dashboard → Connect → choose session pooler when your server requires IPv4. Use the shown hostname, username and password. Use a .NET/Npgsql connection string, not the postgres:// URL:
+## API
 
-```text
-Host=YOUR_SESSION_POOLER;Port=5432;Database=postgres;Username=postgres.YOUR_PROJECT;Password=YOUR_PASSWORD;SSL Mode=VerifyFull
-```
+Interactive documentation: [Swagger UI](https://acxiomcrm-production.up.railway.app/swagger).
 
-Supply settings as environment variables, user-secrets or Railway variables. `.env.example` is a reference; dotnet does not automatically load this file.
+| Method | Endpoint | Purpose |
+|---|---|---|
+| POST | /api/auth/login | Sign in. Returns a bearer token. |
+| POST | /api/auth/logout | Revoke the current session. |
+| GET | /api/auth/me | Current user. |
+| GET POST | /api/customers | List or create customers. |
+| GET PUT DELETE | /api/customers/{id} | Read, update, or deactivate a customer. |
+| GET POST | /api/leads | List or create leads. |
+| GET POST | /api/opportunities | List or create opportunities. |
+| GET POST | /api/followups | List or create follow-ups. |
+| GET POST | /api/activities | List or create activities. |
+| GET | /api/dashboard | KPI and chart data for the signed-in scope. |
+| GET | /api/users | User administration. Admin only. |
+| GET | /api/audit | Audit log. Admin only. |
 
-```bash
+Protected routes return 401 without a valid token and 403 for the wrong role. Validation failures return 400 or 422. Conflicts return 409.
+
+To try an endpoint in Swagger: call POST /api/auth/login with the demo email and password, copy token, choose Authorize, and paste the token.
+
+## Repository
+
+frontend/crm-dashboard-ui-design   Next.js application
+backend                            ASP.NET Core API
+docs                               Architecture, deployment, and acceptance notes
+
+## Run locally
+
+Requirements: Node.js 22 or newer, and the .NET 10 SDK.
+
+The deployed API is already available, so the UI can run against production:
+
+cd frontend/crm-dashboard-ui-design
+npm install
+npm run dev
+
+Set frontend/crm-dashboard-ui-design/.env.local:
+
+NEXT_PUBLIC_API_URL=https://acxiomcrm-production.up.railway.app/api
+
+Open [http://localhost:3000/login](http://localhost:3000/login) and use the demo account.
+
+To run the API yourself, configure backend/.env from backend/.env.example, apply EF Core migrations, bootstrap the first admin, then start the API:
+
 cd backend
-dotnet restore
-dotnet user-secrets init
-dotnet user-secrets set "ConnectionStrings:DefaultConnection" "YOUR_NPGSQL_CONNECTION_STRING"
-dotnet user-secrets set "Jwt:Key" "YOUR_RANDOM_SECRET_AT_LEAST_32_BYTES"
-dotnet user-secrets set "Bootstrap:Email" "YOUR_ADMIN_EMAIL"
-dotnet user-secrets set "Bootstrap:Password" "YOUR_STRONG_PASSWORD"
-dotnet tool install --global dotnet-ef --version 10.0.0
-dotnet ef migrations add InitialCreate
-dotnet ef database update
 dotnet run -- --bootstrap
 dotnet run --urls http://localhost:5000
-```
 
-Migrations are intentionally generated after backend verification; this ZIP does not contain a generated migration. Commit the reviewed generated migration before deploying. Bootstrap creates roles and the first admin, then exits. It never elevates an existing non-admin account. Use `DOTNET_ENVIRONMENT=Development` when using local user-secrets; `dotnet run` launch settings already select Development.
+Point NEXT_PUBLIC_API_URL at http://localhost:5000/api and restart the Next.js dev server. Bootstrap reads Bootstrap__Email and Bootstrap__Password and creates that user as Admin once.
 
-Public registration is disabled by default. Admin can create staff accounts. To demonstrate registration locally, set `Auth:AllowRegistration=true`; it always creates SalesExecutive accounts with no team. A manager sees no team records until an Admin supplies matching team identifiers for the manager and staff.
+## Further reading
 
-## 2. Frontend
-```bash
-cd frontend
-npm ci
-cp .env.example .env.local
-npm run dev
-```
-
-Open http://localhost:3000 and sign in with the bootstrapped admin. Add users, then CRM records. Phone fields use international E.164 format (+919876543210). Backend must be running; no demo dataset or fake login is bundled.
-
-```bash
-npm run typecheck
-npm run build
-```
-
-Sessions remain in React memory to avoid persistent browser token storage. A reload or new tab requires login again. Tokens expire after 30 minutes; there is no refresh flow. Logout invalidates all active sessions for that user. A cookie/BFF session upgrade can be added later.
-
-## Deployment
-See docs/deployment.md for Vercel, Railway and Supabase steps. The frontend calls the API directly over HTTPS using bearer headers and an explicit CORS origin allowlist. It does not connect to Supabase directly or use Supabase Auth.
-
-## Assignment fit
-Identity, EF Core, secured REST endpoints and Chart.js follow the selected requirements. Next.js replaces MVC/Razor and custom CSS replaces Bootstrap, so the package does not satisfy those framework-specific requirements without evaluator approval. Bearer-authenticated mutations use no authentication cookies, so MVC anti-forgery-token mechanics do not apply to this architecture.
+- [docs/architecture.md](docs/architecture.md)
+- [docs/deployment.md](docs/deployment.md)
+- [docs/acceptance.md](docs/acceptance.md)
+- [docs/assignment.md](docs/assignment.md)
