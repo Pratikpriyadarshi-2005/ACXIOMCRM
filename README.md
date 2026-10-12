@@ -1,3 +1,68 @@
+# AcxiomCRM
+
+Role-based sales CRM for customers, leads, opportunities, follow-ups, activities, and reporting. Sales staff see their own records. Managers see team pipeline. Administrators manage users, roles, and the audit trail.
+
+The live application is deployed. Sign in with the demo account below.
+
+## Live application
+
+| | |
+|---|---|
+| Application | [https://acxiomcrm-murex.vercel.app](https://acxiomcrm-murex.vercel.app) |
+| Sign in | [https://acxiomcrm-murex.vercel.app/login](https://acxiomcrm-murex.vercel.app/login) |
+| API | [https://acxiomcrm-production.up.railway.app/api](https://acxiomcrm-production.up.railway.app/api) |
+| Swagger UI | [https://acxiomcrm-production.up.railway.app/swagger](https://acxiomcrm-production.up.railway.app/swagger) |
+| Health | [https://acxiomcrm-production.up.railway.app/health](https://acxiomcrm-production.up.railway.app/health) |
+
+## Demo login
+
+| | |
+|---|---|
+| Name | Administrator |
+| Email | admin@acxiomcrm.com |
+| Password | Acxiom#a443e854ebf6aA1 |
+| Role | Admin |
+
+Use the email and password on the sign-in page. Google sign-in is not connected. Public registration is disabled; an administrator creates staff accounts from Users.
+
+After login the session lasts 30 minutes. Refreshing the page requires signing in again.
+
+## What you can review
+
+Sign in as Administrator, then walk the product in this order:
+
+1. Open [the dashboard](https://acxiomcrm-murex.vercel.app/dashboard) while logged out. The app returns you to sign in.
+2. Sign in and review KPI cards, lead-status, pipeline, and monthly sales charts. Change the date range.
+3. Create a customer. Invalid email or phone is blocked in the form and again on the server. Phone numbers use international format, for example +919876543210.
+4. Create a lead, set the status to Qualified, and convert it to a customer.
+5. Create an opportunity. Amount must be greater than 0, probability must be from 0 to 100, and an open deal cannot close in the past. Weighted pipeline is amount × probability.
+6. Schedule a follow-up. A new planned follow-up cannot be dated before today. Mark it completed or missed.
+7. Open Reports for customer, lead, follow-up, opportunity, pipeline, and conversion views.
+8. Open Users, Roles, and Audit Logs. These links appear only for Admin. Create a Manager or Sales Executive, then sign in as that user to see the narrower record scope.
+9. Open [Swagger UI](https://acxiomcrm-production.up.railway.app/swagger) and call POST /api/auth/login, then the customer, lead, and opportunity endpoints with the returned bearer token.
+
+## Roles
+
+| Role | Access |
+|---|---|
+| Admin | All CRM records, users, roles, audit logs, and reports |
+| Manager | Team customers, leads, opportunities, follow-ups, and reports |
+| Sales Executive | Owned customers, leads, opportunities, follow-ups, and activities |
+
+Authorization is enforced on the API. Hiding a menu link is not the access check.
+
+## Product modules
+
+- Dashboard — customers, leads, open / won / lost opportunities, pipeline value, and Chart.js charts
+- Customers — create, edit, search, filter, and deactivate
+- Leads — source, status, priority, assignment, and qualified-lead conversion
+- Opportunities — stage, amount, probability, expected close date, and pipeline board
+- Follow-ups — planned, completed, missed, and overdue
+- Activities — call, meeting, email, and task
+- Reports — operational and pipeline reports scoped to the signed-in role
+- Administration — users, roles, account status, unlock, password reset, and audit log
+
+## Security
 - ASP.NET Core Identity hashes passwords. Plain-text passwords and hashes are never returned.
 - Password policy: at least 8 characters, with uppercase, lowercase, a number, and a symbol.
 - Five failed sign-ins lock the account for 15 minutes.
